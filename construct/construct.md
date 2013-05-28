@@ -14,7 +14,7 @@ about hooking up all the particulars yourself. It is inspired by John Resig's
 @param {String} [name] the namespace and name of the constructor
 @param {Object} [staticProperties] properties that will belong to the constructor
 @param {Object} instanceProperties properties that will belong to instances made with the constructor
-@return {function} The constructor.
+@return {function(new:can.Construct, Object)} The constructor.
 
 @body
 In the example below, `Animal` is a constructor function. All instances of `Animal` will have a `breathe`

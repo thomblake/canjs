@@ -522,11 +522,11 @@ steal('can/util','can/construct', function( can ) {
 		 * @parent can.Control.prototype
 		 * @description Bind an event handler to a Control, or rebind all event handlers on a Control.
 		 * @signature `on([el,] selector, eventName, func)`
-		 * @param {HTMLElement|jQuery collection|Object} [el=this.element]
+		 * @param {HTMLElement|NodeList|Object} [el=this.element]
 		 * The element to be bound.  If no element is provided, the control's element is used instead.
 		 * @param {String} selector A css selector for event delegation.
 		 * @param {String} eventName The event to listen for.
-		 * @param {Function|String} func A callback function or the String name of a control function.  If a control
+		 * @param {function(NodeList,String)|String} func A callback function or the String name of a control function.  If a control
 		 * function name is given, the control function is called back with the bound element and event as the first
 		 * and second parameter.  Otherwise the function is called back like a normal bind.
 		 * @return {Number} The id of the binding in this._bindings

@@ -452,7 +452,7 @@ steal("can/util/string", function(can) {
 			 */
 			//  
 			/**
-			 * @property {Function} can.Construct.prototype.constructor constructor
+			 * @property {can.Construct} can.Construct.prototype.constructor constructor
 			 * @parent can.Construct.prototype
 			 *
 			 * A reference to the constructor function that created the instance. This allows you to access

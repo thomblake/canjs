@@ -311,7 +311,8 @@ steal('can/util', 'can/model', 'can/observe/elements', function(can) {
 		 *        return instanceInList.date < new Date();
 		 *     });
 		 * 
-		 * @param {Function} callback the function to call back.  This function has the same call pattern as what jQuery.grep provides.
+		 * @param {function(Object,Number)} callback(element,index) the function to call back.
+		 * It is provided the each element of the list and its index in turn.
 		 * @param {Object} args
 		 */
 		grep: function( callback, args ) {
@@ -438,8 +439,8 @@ steal('can/util', 'can/model', 'can/observe/elements', function(can) {
 		 * to find items with the params passed.
 		 * 
 		 * @param {Object} params options to refind the returned items
-		 * @param {Function} success called with the list
-		 * @param {Object} error
+		 * @param {function(can.Model.List)} success called with the list
+		 * @param {function(Object)} error a handler called back when the find was unsuccessful.
 		 */
 		findAll: function( params, success, error ) {
 			var self = this;
@@ -458,8 +459,8 @@ steal('can/util', 'can/model', 'can/observe/elements', function(can) {
 		 *         //error
 		 *     });
 		 * 
-		 * @param {Function} success a handler called back with the destroyed items.  The original list will be emptied.
-		 * @param {Function} error a handler called back when the destroy was unsuccessful.
+		 * @param {function(Array<can.Model>)} success a handler called back with the destroyed items.  The original list will be emptied.
+		 * @param {function(Object)} error a handler called back when the destroy was unsuccessful.
 		 */
 		destroy: function( success, error ) {
 			var ids = this.map(getIds),
