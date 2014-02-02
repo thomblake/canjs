@@ -52,9 +52,13 @@ steal('can/util', 'can/util/bind', 'can/util/batch', function (can, bind) {
 	};
 	
 	var Computed = function(compute, callback){
+		var self = this;
 		this.compute = compute;
 		this.observing = {};
-		this.changed = can.proxy(this.onchanged, this);
+		this.changed = function(){
+			return self.onchanged.apply(self, arguments);
+		};
+		
 		this.compute.value = this.getValueAndBind();
 		this.callback = callback;
 		
@@ -125,12 +129,23 @@ steal('can/util', 'can/util/bind', 'can/util/batch', function (can, bind) {
 			}
 		}
 	});	
-		
+	
+	var update =  function (newValue, oldValue) {
+		this.value = newValue;
+		// might need a way to look up new and oldVal
+		can.batch.trigger(this.computeFunction, 'change', [
+			newValue,
+			oldValue
+		]);
+	}
+	
 	var Compute = function(options){
 		this.options = options;
 		can.simpleExtend(this, options);
-		
-		this.update = can.proxy(this.updater, this);
+		var self = this;
+		this.update = function(newValue, oldValue){
+			update.call(self, newValue, oldValue)
+		};
 	}
 	can.extend(Compute.prototype,{
 		read: function(){
@@ -192,14 +207,6 @@ steal('can/util', 'can/util/bind', 'can/util/batch', function (can, bind) {
 		// sets the value
 		set: function(newVal){
 			this.value = newVal;
-		},
-		updater: function (newValue, oldValue) {
-			this.value = newValue;
-			// might need a way to look up new and oldVal
-			can.batch.trigger(this.computeFunction, 'change', [
-				newValue,
-				oldValue
-			]);
 		}
 		
 		// triggeredOn
