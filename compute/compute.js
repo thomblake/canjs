@@ -49,87 +49,163 @@ steal('can/util', 'can/util/bind', 'can/util/batch', function (can, bind) {
 			value: value,
 			observed: observed
 		};
-	},
-		// Calls `callback(newVal, oldVal)` everytime an observed property
-		// called within `getterSetter` is changed and creates a new result of `getterSetter`.
-		// Also returns an object that can teardown all event handlers.
-		computeBinder = function (getterSetter, context, callback, computeState) {
-			// track what we are observing
-			var observing = {},
-				// a flag indicating if this observe/attr pair is already bound
-				matched = true,
-				// the data to return
-				data = {
-					value: undefined,
-					teardown: function () {
-						for (var name in observing) {
-							var ob = observing[name];
-							ob.observe.obj.unbind(ob.observe.attr, onchanged);
-							delete observing[name];
-						}
-					}
-				}, batchNum;
-			// when a property value is changed
-			var onchanged = function (ev) {
-				// If the compute is no longer bound (because the same change event led to an unbind)
-				// then do not call getValueAndBind, or we will leak bindings.
-				if (computeState && !computeState.bound) {
-					return;
+	};
+	
+	var Computed = function(compute, callback){
+		this.compute = compute;
+		this.observing = {};
+		this.changed = can.proxy(this.onchanged, this);
+		this.compute.value = this.getValueAndBind();
+		this.callback = callback;
+		
+		this.compute.computeFunction.hasDependencies = !can.isEmptyObject(this.observing);
+	};
+	can.extend(Computed.prototype,{
+		onchanged: function (ev) {
+			// If the compute is no longer bound (because the same change event led to an unbind)
+			// then do not call getValueAndBind, or we will leak bindings.
+			if ( !this.compute.bound ) {
+				return;
+			}
+			if (ev.batchNum === undefined || ev.batchNum !== this.batchNum) {
+				// store the old value
+				var oldValue = this.compute.value,
+					// get the new value
+					newValue = this.getValueAndBind();
+				// update the value reference (in case someone reads)
+				// TODO: might not need to do this
+				this.compute.value = newValue;
+				// if a change happened
+				if (newValue !== oldValue) {
+					this.callback(newValue, oldValue);
 				}
-				if (ev.batchNum === undefined || ev.batchNum !== batchNum) {
-					// store the old value
-					var oldValue = data.value,
-						// get the new value
-						newvalue = getValueAndBind();
-					// update the value reference (in case someone reads)
-					data.value = newvalue;
-					// if a change happened
-					if (newvalue !== oldValue) {
-						callback(newvalue, oldValue);
-					}
-					batchNum = batchNum = ev.batchNum;
+				this.batchNum = ev.batchNum;
+			}
+		},
+		getValueAndBind: function(){
+			var info = getValueAndObserved(this.compute.get, this.compute.context),
+				newObserveSet = info.observed,
+				value = info.value,
+				ob;
+				
+			var matched = this.matched = !this.matched;
+			
+			// go through every attribute read by this observe
+			for (var i = 0, len = newObserveSet.length; i < len; i++) {
+				ob = newObserveSet[i];
+				// if the observe/attribute pair is being observed
+				if (this.observing[ob.obj._cid + '|' + ob.attr]) {
+					// mark at as observed
+					this.observing[ob.obj._cid + '|' + ob.attr].matched = matched;
+				} else {
+					// otherwise, set the observe/attribute on oldObserved, marking it as being observed
+					this.observing[ob.obj._cid + '|' + ob.attr] = {
+						matched: matched,
+						observe: ob
+					};
+					ob.obj.bind(ob.attr, this.changed);
 				}
-			};
-			// gets the value returned by `getterSetter` and also binds to any attributes
-			// read by the call
-			var getValueAndBind = function () {
-				var info = getValueAndObserved(getterSetter, context),
-					newObserveSet = info.observed;
-				var value = info.value,
-					ob;
-				matched = !matched;
-				// go through every attribute read by this observe
-				for (var i = 0, len = newObserveSet.length; i < len; i++) {
-					ob = newObserveSet[i];
-					// if the observe/attribute pair is being observed
-					if (observing[ob.obj._cid + '|' + ob.attr]) {
-						// mark at as observed
-						observing[ob.obj._cid + '|' + ob.attr].matched = matched;
-					} else {
-						// otherwise, set the observe/attribute on oldObserved, marking it as being observed
-						observing[ob.obj._cid + '|' + ob.attr] = {
-							matched: matched,
-							observe: ob
-						};
-						ob.obj.bind(ob.attr, onchanged);
-					}
+			}
+			// Iterate through oldObserved, looking for observe/attributes
+			// that are no longer being bound and unbind them
+			for (var name in this.observing) {
+				ob = this.observing[name];
+				if (ob.matched !== matched) {
+					ob.observe.obj.unbind(ob.observe.attr, this.changed);
+					delete this.observing[name];
 				}
-				// Iterate through oldObserved, looking for observe/attributes
-				// that are no longer being bound and unbind them
-				for (var name in observing) {
-					ob = observing[name];
-					if (ob.matched !== matched) {
-						ob.observe.obj.unbind(ob.observe.attr, onchanged);
-						delete observing[name];
-					}
+			}
+			return value;
+		},
+		teardown: function(){
+			for (var name in this.observing) {
+				var ob = this.observing[name];
+				ob.observe.obj.unbind(ob.observe.attr, this.changed);
+				delete this.observing[name];
+			}
+		}
+	});	
+		
+	var Compute = function(options){
+		this.options = options;
+		can.simpleExtend(this, options);
+		
+		this.update = can.proxy(this.updater, this);
+	}
+	can.extend(Compute.prototype,{
+		read: function(){
+			// Another compute wants to bind to this compute
+			if (currentObserved && this.canReadForChangeEvent !== false) {
+	
+				// Tell the compute to listen to change on this computed
+				can.__reading(this.computeFunction, 'change');
+				// We are going to bind on this compute.
+				// If we are not bound, we should bind so that
+				// we don't have to re-read to get the value of this compute.
+				if (!this.bound) {
+					can.compute.temporarilyBind(this.computeFunction);
 				}
-				return value;
-			};
-			// set the initial value
-			data.value = getValueAndBind();
-			data.isListening = !can.isEmptyObject(observing);
-			return data;
-		};
+			}
+			// if we are bound, use the cached value
+			if (this.bound) {
+				return this.value;
+			} else {
+				return this.get ? this.get.call(this.context) : this.value;
+			}
+		},
+		write: function(newVal){
+			var old = this.value;
+			// setter may return a value if
+			// setter is for a value maintained exclusively by this compute
+			var setVal;
+			if(this.set) {
+				setVal = this.set.call(this.context, newVal, old);
+			}
+			
+			// if this has dependencies return the current value
+			if (this.hasDependencies) {
+				return this.get.call(this.context);
+			}
+			
+			if (setVal === undefined) {
+				// it's possible, like with the DOM, setting does not
+				// fire a change event, so we must read
+				this.value = this.get ? this.get.call(this.context) : newVal;
+			} else {
+				this.value = setVal;
+			}
+			// fire the change
+			if (old !== this.value) {
+				can.batch.trigger(this.computeFunction, 'change', [
+					this.value,
+					old
+				]);
+			}
+			return this.value;
+		},
+		// The following functions are overwritten depending on how compute() is called
+		// a method to setup listening
+		on: function(){},
+		// a method to teardown listening
+		off: function(){},
+		// how to read the value
+		// sets the value
+		set: function(newVal){
+			this.value = newVal;
+		},
+		updater: function (newValue, oldValue) {
+			this.value = newValue;
+			// might need a way to look up new and oldVal
+			can.batch.trigger(this.computeFunction, 'change', [
+				newValue,
+				oldValue
+			]);
+		}
+		
+		// triggeredOn
+	});
+		
+	
 	var isObserve = function (obj) {
 		return obj instanceof can.Map || obj && obj.__get;
 	};
@@ -138,228 +214,117 @@ steal('can/util', 'can/util/bind', 'can/util/batch', function (can, bind) {
 		if (getterSetter && getterSetter.isComputed) {
 			return getterSetter;
 		}
-		// stores the result of computeBinder
-		var computedData,
-			// the computed object
-			computed,
-			// an object that keeps track if the computed is bound
-			// onchanged needs to know this. It's possible a change happens and results in
-			// something that unbinds the compute, it needs to not to try to recalculate who it
-			// is listening to
-			computeState = {
-				bound: false,
-				hasDependencies: false
-			},
-			// The following functions are overwritten depending on how compute() is called
-			// a method to setup listening
-			on = k,
-			// a method to teardown listening
-			off = k,
-			// the current cached value (only valid if bound = true)
-			value,
-			// how to read the value
-			get = function () {
-				return value;
-			},
-			// sets the value
-			set = function (newVal) {
-				value = newVal;
-			},
-			// this compute can be a dependency of other computes
-			canReadForChangeEvent = true,
-			// save for clone
-			args = can.makeArray(arguments),
-			updater = function (newValue, oldValue) {
-				value = newValue;
-				// might need a way to look up new and oldVal
-				can.batch.trigger(computed, 'change', [
-					newValue,
-					oldValue
-				]);
-			},
-			// the form of the arguments
-			form;
-		computed = function (newVal) {
+		
+
+			
+		var computed,
+			compute,
+			form,
+			args = can.makeArray(arguments);
+			
+		var computeFunction = function (newVal) {
 			// setting ...
 			if (arguments.length) {
-				// save a reference to the old value
-				var old = value;
-				// setter may return a value if
-				// setter is for a value maintained exclusively by this compute
-				var setVal = set.call(context, newVal, old);
-				// if this has dependencies return the current value
-				if (computed.hasDependencies) {
-					return get.call(context);
-				}
-				if (setVal === undefined) {
-					// it's possible, like with the DOM, setting does not
-					// fire a change event, so we must read
-					value = get.call(context);
-				} else {
-					value = setVal;
-				}
-				// fire the change
-				if (old !== value) {
-					can.batch.trigger(computed, 'change', [
-						value,
-						old
-					]);
-				}
-				return value;
+				return compute.write(newVal);
 			} else {
-				// Another compute wants to bind to this compute
-				if (currentObserved && canReadForChangeEvent) {
-
-					// Tell the compute to listen to change on this computed
-					can.__reading(computed, 'change');
-					// We are going to bind on this compute.
-					// If we are not bound, we should bind so that
-					// we don't have to re-read to get the value of this compute.
-					if (!computeState.bound) {
-						can.compute.temporarilyBind(computed);
-					}
-				}
-				// if we are bound, use the cached value
-				if (computeState.bound) {
-					return value;
-				} else {
-					return get.call(context);
-				}
+				return compute.read();
 			}
 		};
+		
 		if (typeof getterSetter === 'function') {
-			set = getterSetter;
-			get = getterSetter;
-			canReadForChangeEvent = eventName === false ? false : true;
-			computed.hasDependencies = false;
-			on = function (update) {
-				computedData = computeBinder(getterSetter, context || this, update, computeState);
-				computed.hasDependencies = computedData.isListening;
-				value = computedData.value;
-			};
-			off = function () {
-				if (computedData) {
-					computedData.teardown();
-				}
-			};
+			
+			compute = new Compute({
+				get: getterSetter,
+				set: getterSetter,
+				canReadForChangeEvent: eventName === false ? false : true,
+				on: function (update) {
+					computed = new Computed(compute, update);
+				},
+				off: function () {
+					computed.teardown();
+				},
+				context: context
+			});
 		} else if (context) {
+			
 			if (typeof context === 'string') {
 				// `can.compute(obj, "propertyName", [eventName])`
 				var propertyName = context,
 					isObserve = getterSetter instanceof can.Map;
-				if (isObserve) {
-					computed.hasDependencies = true;
-				}
-				get = function () {
-					if (isObserve) {
-						return getterSetter.attr(propertyName);
-					} else {
-						return getterSetter[propertyName];
+				
+				computeFunction.hasDependencies = isObserve;
+				
+				compute = new Compute({
+					get: function () {
+						if (isObserve) {
+							return getterSetter.attr(propertyName);
+						} else {
+							return getterSetter[propertyName];
+						}
+					},
+					set: function (newValue) {
+						if (isObserve) {
+							getterSetter.attr(propertyName, newValue);
+						} else {
+							getterSetter[propertyName] = newValue;
+						}
+					},
+					on: function(update ){
+						handler = function () {
+							update(compute.get(), value);
+						};
+						can.bind.call(getterSetter, eventName || propertyName, handler);
+						// use getValueAndObserved because
+						// we should not be indicating that some parent
+						// reads this property if it happens to be binding on it
+						compute.value = getValueAndObserved(compute.get).value;
 					}
-				};
-				set = function (newValue) {
-					if (isObserve) {
-						getterSetter.attr(propertyName, newValue);
-					} else {
-						getterSetter[propertyName] = newValue;
-					}
-				};
-				var handler;
-				on = function (update) {
-					handler = function () {
-						update(get(), value);
-					};
-					can.bind.call(getterSetter, eventName || propertyName, handler);
-					// use getValueAndObserved because
-					// we should not be indicating that some parent
-					// reads this property if it happens to be binding on it
-					value = getValueAndObserved(get)
-						.value;
-				};
-				off = function () {
-					can.unbind.call(getterSetter, eventName || propertyName, handler);
-				};
+				});
 			} else {
 				// `can.compute(initialValue, setter)`
 				if (typeof context === 'function') {
-					value = getterSetter;
-					set = context;
-					context = eventName;
 					form = 'setter';
+					compute = new Compute({
+						value: getterSetter,
+						set: context,
+						context: eventName
+					});
 				} else {
+					var options = can.extend({},context);
 					// `can.compute(initialValue,{get:, set:, on:, off:})`
-					value = getterSetter;
-					var options = context;
-					get = options.get || get;
-					set = options.set || set;
-					on = options.on || on;
-					off = options.off || off;
+					options.value = getterSetter;
+					compute = new Compute(options);
 				}
 			}
+			
 		} else {
 			// `can.compute(5)`
-			value = getterSetter;
+			compute = new Compute({
+				value: getterSetter
+			});
 		}
-		can.cid(computed, 'compute');
-		return can.simpleExtend(computed, {
-			/**
-			 * @property {Boolean} can.computed.isComputed compute.isComputed
-			 * @parent can.compute
-			 * Whether the value of the compute has been computed yet.
-			 */
-			isComputed: true,
+		
+		compute.computeFunction = computeFunction;
+		
+		
+		can.cid(computeFunction, 'compute');
+		
+		can.simpleExtend(computeFunction,{
 			_bindsetup: function () {
-				computeState.bound = true;
+				compute.bound = true;
 				// setup live-binding
 				// while binding, this does not count as a read
 				var oldReading = can.__clearReading();
-				on.call(this, updater);
+				compute.on.call(this, compute.update);
 				can.__setReading(oldReading);
 			},
 			_bindteardown: function () {
-				off.call(this, updater);
-				computeState.bound = false;
+				compute.off.call(this, compute.update);
+				compute.bound = false;
 			},
-			/**
-			 * @function can.computed.bind compute.bind
-			 * @parent can.compute
-			 * @description Bind an event handler to a compute.
-			 * @signature `compute.bind(eventType, handler)`
-			 * @param {String} eventType The event to bind this handler to.
-			 * The only event type that computes emit is _change_.
-			 * @param {function({Object},{*},{*})} handler The handler to call when the event happens.
-			 * The handler should have three parameters:
-			 *
-			 * - _event_ is the event object.
-			 * - _newVal_ is the newly-computed value of the compute.
-			 * - _oldVal_ is the value of the compute before it changed.
-			 *
-			 * `bind` lets you listen to a compute to know when it changes. It works just like
-			 * can.Map's `[can.Map.prototype.bind bind]`:
-			 * @codestart
-			 * var tally = can.compute(0);
-			 * tally.bind('change', function(ev, newVal, oldVal) {
-			 *     console.log('The tally is now at ' + newVal + '.');
-			 * });
-			 *
-			 * tally(tally() + 5); // The log reads:
-			 *                     // 'The tally is now at 5.'
-			 * @codeend
-			 */
 			bind: can.bindAndSetup,
-			/**
-			 * @function computed.unbind compute.unbind
-			 * @parent can.compute
-			 * @description Unbind an event handler from a compute.
-			 * @signature `compute.unbind(eventType[, handler])`
-			 * @param {String} eventType The type of event to unbind.
-			 * The only event type available for computes is _change_.
-			 * @param {function} [handler] If given, the handler to unbind.
-			 * If _handler_ is not supplied, all handlers bound to _eventType_
-			 * will be removed.
-			 */
 			unbind: can.unbindAndTeardown,
-			clone: function (context) {
+			clone: function(context){
 				if (context) {
 					if (form === 'setter') {
 						args[2] = context;
@@ -368,8 +333,11 @@ steal('can/util', 'can/util/bind', 'can/util/batch', function (can, bind) {
 					}
 				}
 				return can.compute.apply(can, args);
-			}
-		});
+			},
+			isComputed: true
+		})
+		
+		return computeFunction;
 	};
 	// a list of temporarily bound computes
 	var computes, unbindComputes = function () {
@@ -387,7 +355,7 @@ steal('can/util', 'can/util/bind', 'can/util/batch', function (can, bind) {
 		}
 		computes.push(compute);
 	};
-	can.compute.binder = computeBinder;
+	
 	can.compute.truthy = function (compute) {
 		return can.compute(function () {
 			var res = compute();
