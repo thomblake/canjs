@@ -262,26 +262,26 @@ steal("can/util", "can/control", "can/observe", "can/view/mustache", "can/view/b
 			}
 		});
 
-	if (window.$ && $.fn) {
-		$.fn.scope = function (attr) {
-			if (attr) {
-				return this.data("scope")
-					.attr(attr);
-			} else {
-				return this.data("scope");
-			}
-		};
-	}
-
-	can.scope = function (el, attr) {
+	can.scope = function (el, attr, val) {
 		el = can.$(el);
-		if (attr) {
-			return can.data(el, "scope")
-				.attr(attr);
-		} else {
-			return can.data(el, "scope");
+		var scope = can.data(el, "scope");
+		switch (arguments.length) {
+		case 0:
+		case 1:
+			return scope;
+		case 2:
+			return scope.attr(attr);
+		default:
+			scope.attr(attr, val);
+			return el;
 		}
 	};
+
+	if (window.$ && $.fn) {
+		$.fn.scope = function () {
+			return can.scope.apply(can, [this].concat(can.makeArray(arguments)));
+		};
+	}
 
 	return Component;
 });
