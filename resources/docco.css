@@ -1,4 +1,3 @@
-/*--------------------- Typography ----------------------------*/
 
 @font-face {
     font-family: 'aller-light';
@@ -39,10 +38,19 @@ body {
     color: #B8C4D0;
     margin: 0; padding: 0;
     height:100%;
+    background-color: #393939;
+}
+
+.content {
+    background-color: #393939;
 }
 
 .annotation {
     color : #393939;
+}
+
+#background {
+    background-color: #eee;
 }
 
 #container { min-height: 100%; }
@@ -52,7 +60,7 @@ a {
 }
 
 b, strong {
-    font-weight: normal;
+    font-style: italic;
     font-family: "aller-bold";
 }
 
@@ -71,8 +79,7 @@ p {
 h1, h2, h3, h4, h5, h6 {
     color: #112233;
     line-height: 1em;
-    font-weight: normal;
-    font-family: "novecento-bold";
+    font-weight: 700;
     margin: 30px 0 15px 0;
 }
 
@@ -93,21 +100,23 @@ pre, tt, code {
     margin: 0;
     padding: 0;
     tab-size: 2;
+    -moz-tab-size: 2;
 }
 .annotation pre {
     display: block;
     margin: 0;
     padding: 7px 10px;
-    background: #fcfcfc;
-    -moz-box-shadow:    inset 0 0 10px rgba(0,0,0,0.1);
-    -webkit-box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
-    box-shadow:         inset 0 0 10px rgba(0,0,0,0.1);
+    background: #393939;
+    -moz-box-shadow:    inset 0 0 10px rgba(100,100,100,0.2);
+    -webkit-box-shadow: inset 0 0 10px rgba(100,100,100,0.2);
+    box-shadow:         inset 0 0 10px rgba(100,100,100,0.2);
     overflow-x: auto;
 }
+
 .annotation pre code {
     border: 0;
     padding: 0;
-    background: transparent;
+    background-color: #393939;
 }
 
 
@@ -184,6 +193,8 @@ ul.sections > li > div {
 
 #jump_to:hover #jump_wrapper {
     display: block;
+    overflow: auto;
+    bottom: 0;
 }
 
 #jump_page {
@@ -246,7 +257,6 @@ ul.sections > li > div {
         position: relative;
     }
     body {
-        background-color: #F5F5FF;
         font-size: 15px;
         line-height: 21px;
     }
@@ -279,12 +289,10 @@ ul.sections > li > div {
     }
 
 
-
     #background {
         position: absolute;
         top: 0; bottom: 0;
         width: 350px;
-        background: #fff;
         border-right: 1px solid #e5e5ee;
         z-index: -1;
     }
@@ -376,16 +384,11 @@ ul.sections > li > div {
 
 td.linenos { background-color: #f0f0f0; padding-right: 10px; }
 span.lineno { background-color: #f0f0f0; padding: 0 5px 0 5px; }
-/*
-
-github.com style (c) Vasily Polovnyov <vast@whiteants.net>
-
-*/
 
 pre code {
     display: block; padding: 0.5em;
-    color: #000;
-    background: #f8f8ff
+    color: #B8C4D0;
+    background-color: #393939
 }
 
 pre .hljs-comment,
@@ -398,6 +401,11 @@ pre .hljs-javadoc {
 
 pre .hljs-comment {
     display: none;
+}
+
+.annotation pre .hljs-comment {
+    display: inline;
+    color : #999;
 }
 
 pre .hljs-keyword,
@@ -513,49 +521,4 @@ pre .hljs-chunk {
 
 pre .hljs-tex .hljs-formula {
     opacity: 0.5;
-}
-
-
-/*--- Jasmine overrides for Docco CSS ---*/
-body {
-    font-family: 'Lucida Sans', 'Tahoma', sans-serif;
-    background-color: #393939;
-}
-
-#background {
-    background-color: #eee;
-}
-
-h1, h2, h3, h4, h5, h6 {
-    font-family: 'Istok Web', sans-serif;
-    font-weight: 700;
-}
-
-.powered {
-    padding: 15px 12px 12px;
-    float: left;
-}
-
-.jump_to {
-    list-style: none;
-    font-weight: bold;
-    font-size: 16px;
-}
-
-.jump_to li {
-    display: inline-block;
-    margin-left: 10px;
-}
-
-.jump_to a:hover {
-    color: #772a70;
-}
-
-strong {
-    font-style: italic;
-    font-weight: bold;
-}
-
-.content {
-    background-color: #393939;
 }
