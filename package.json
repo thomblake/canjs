@@ -1,5 +1,5 @@
 {
-  "name": "CanJS",
+  "name": "canjs",
   "description": "MIT-licensed, client-side, JavaScript framework that makes building rich web applications easy.",
   "version": "2.0.7",
   "author": {
@@ -10,8 +10,8 @@
   "homepage": "http://canjs.us/",
   "repository": {
     "type": "git",
-    "url": "git@github.com:bitovi/canjs.git",
-    "github": "https://github.com/bitovi/canjs"
+    "url": "git@github.com:thomblake/canjs.git",
+    "github": "https://github.com/thomblake/canjs"
   },
   "devDependencies": {
     "grunt": "~0.4.0",
