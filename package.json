@@ -1,12 +1,8 @@
 {
   "name": "canjs",
   "description": "MIT-licensed, client-side, JavaScript framework that makes building rich web applications easy.",
-  "version": "2.0.7-1",
-  "author": {
-    "name": "Bitovi",
-    "email": "contact@bitovi.com",
-    "web": "http://bitovi.com/"
-  },
+  "version": "2.0.7-2",
+  "author": "Bitovi <contact@bitovi.com> (http://bitovi.com/)",
   "homepage": "http://canjs.us/",
   "repository": {
     "type": "git",
@@ -46,5 +42,16 @@
   ],
   "dependencies": {
     "grunt-cli": "~0.1.7"
-  }
+  },
+  "bugs": {
+    "url": "https://github.com/thomblake/canjs/issues"
+  },
+  "main": "can.js",
+  "directories": {
+    "test": "test"
+  },
+  "keywords": [
+    "canjs"
+  ],
+  "license": "MIT"
 }
